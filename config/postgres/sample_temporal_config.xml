@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<parameters>
+
+    <!-- Connection details -->
+    <type>POSTGRES</type>
+    <driver>org.postgresql.Driver</driver>
+    <url>jdbc:postgresql://localhost:5432/benchbase?sslmode=disable&amp;ApplicationName=postgres&amp;reWriteBatchedInserts=true</url>
+    <username>admin</username>
+    <password>password</password>
+    <reconnectOnConnectionFailure>true</reconnectOnConnectionFailure>
+    <isolation>TRANSACTION_READ_COMMITTED</isolation>
+    <batchsize>128</batchsize>
+
+    <!-- Scalefactor in Temporal scales by *1000 the number of employees-->
+    <scalefactor>1</scalefactor>
+
+
+    <base_ip>10.1.</base_ip>
+
+    <!-- The workload -->
+    <terminals>1</terminals>
+    <works>
+        <work>
+            <time>60</time>
+            <rate>10000</rate>
+            <!--
+            <weights>1,1,7,90,1</weights>
+            -->
+            <weights>1,</weights>
+        </work>
+    </works>
+
+    <!-- Temporal Procedures declaration -->
+    <transactiontypes>
+        <transactiontype>
+            <name>InsertPosition</name>
+        </transactiontype>
+    </transactiontypes>
+</parameters>
