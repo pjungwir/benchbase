@@ -8,6 +8,7 @@ public final class Employee {
   public int salary;
   public LocalDate hired;
   public LocalDate lastRaised;
+  public boolean fired = false;
 
   public Employee(int employeeId, int salary, LocalDate hired) {
     this.employeeId = employeeId;
