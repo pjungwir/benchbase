@@ -2,6 +2,7 @@ package com.oltpbenchmark.benchmarks.temporal;
 
 import com.oltpbenchmark.benchmarks.temporal.procedures.*;
 import java.time.LocalDate;
+import java.util.Random;
 
 public final class TemporalModel {
 
@@ -17,6 +18,14 @@ public final class TemporalModel {
     this.startingPositions = (int) Math.round(TemporalConstants.NUM_POSITIONS * scaleFactor);
     this.employees = new Employee[startingEmployees];
     this.positions = new Position[startingPositions];
+  }
+
+  public int randomEmployeeId(Random rng) {
+    return rng.nextInt(startingEmployees) + 1;
+  }
+
+  public int randomPositionId(Random rng) {
+    return rng.nextInt(startingPositions) + 1;
   }
 
   public synchronized Employee getEmployee(int id) {
