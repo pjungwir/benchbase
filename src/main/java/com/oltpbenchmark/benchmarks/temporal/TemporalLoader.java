@@ -11,8 +11,11 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class TemporalLoader extends Loader<TemporalBenchmark> {
+  private static final Logger LOG = LoggerFactory.getLogger(TemporalLoader.class);
 
   private final TemporalModel model;
 

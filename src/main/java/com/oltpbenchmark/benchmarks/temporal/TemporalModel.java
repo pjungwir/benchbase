@@ -11,6 +11,7 @@ public final class TemporalModel {
   public final int startingPositions;
   private final Employee[] employees;
   private final Position[] positions;
+  private int fkViolations = 0;
 
   public TemporalModel(double scaleFactor) {
     this.today = LocalDate.now();
@@ -51,5 +52,10 @@ public final class TemporalModel {
   public synchronized void insertPosition(
       int positionId, int employeeId, String duty, LocalDate assigned) {
     this.positions[positionId - 1] = new Position(positionId, employeeId, duty, assigned);
+  }
+
+  public synchronized int failFk() {
+    fkViolations += 1;
+    return fkViolations;
   }
 }
