@@ -24,7 +24,7 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
   protected TransactionStatus executeWork(Connection conn, TransactionType nextTrans)
       throws UserAbortException, SQLException {
     if (nextTrans.getProcedureClass().equals(InsertPosition.class)) {
-      int employeeId = rng().nextInt(model.startingEmployees) + 1;
+      int employeeId = model.randomEmployeeId(rng());
       String duty =
           TemporalConstants.POSITION_NAMES[rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
       int rank = 1;
@@ -37,6 +37,22 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
       // But it'd be nice to update new things too.
       // getBenchmark().model.insertPosition(employeeId, positionId, duty, s, e, rank);
 
+    } else if (nextTrans.getProcedureClass().equals(UpdatePosition.class)) {
+      int positionId = model.randomPositionId(rng());
+      Position p = model.getPosition(positionId);
+      synchronized (p) {
+        p.rank += 1;
+        // 50% of the time, assign to another employee to test the FK:
+        if (rng().nextInt(100) > 50) {
+          p.employeeId = model.randomEmployeeId(rng());
+          // Better start from today or we can choose an employee who wasn't hired yet:
+          LocalDate today = LocalDate.now();
+          if (p.lastPromoted.isBefore(today)) p.lastPromoted = today;
+        }
+        p.lastPromoted = p.lastPromoted.plusDays(1 + rng().nextInt(365 * 3));
+        getProcedure(UpdatePosition.class)
+            .run(conn, positionId, p.employeeId, p.duty, p.rank, p.lastPromoted);
+      }
     }
     return (TransactionStatus.SUCCESS);
   }
