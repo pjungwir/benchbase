@@ -38,8 +38,7 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
       // getBenchmark().model.insertPosition(employeeId, positionId, duty, s, e, rank);
 
     } else if (nextTrans.getProcedureClass().equals(UpdatePosition.class)) {
-      int positionId = model.randomPositionId(rng());
-      Position p = model.getPosition(positionId);
+      Position p = model.choosePosition(rng());
       synchronized (p) {
         p.rank += 1;
         // 50% of the time, assign to another employee to test the FK:
@@ -51,7 +50,14 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
         }
         p.lastPromoted = p.lastPromoted.plusDays(1 + rng().nextInt(365 * 3));
         getProcedure(UpdatePosition.class)
-            .run(conn, positionId, p.employeeId, p.duty, p.rank, p.lastPromoted);
+            .run(conn, p.positionId, p.employeeId, p.duty, p.rank, p.lastPromoted);
+      }
+
+    } else if (nextTrans.getProcedureClass().equals(UpdateEmployee.class)) {
+      Employee emp = model.chooseEmployee(rng());
+      synchronized (emp) {
+        emp.raise(emp.lastRaised.plusDays(365 * (1 + rng().nextInt(3))));
+        getProcedure(UpdateEmployee.class).run(conn, emp.employeeId, emp.salary, emp.lastRaised);
       }
     }
     return (TransactionStatus.SUCCESS);
