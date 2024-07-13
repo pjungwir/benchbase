@@ -28,6 +28,14 @@ public final class TemporalModel {
     return rng.nextInt(startingPositions) + 1;
   }
 
+  public Employee chooseEmployee(Random rng) {
+    return employees[rng.nextInt(startingEmployees)];
+  }
+
+  public Position choosePosition(Random rng) {
+    return positions[rng.nextInt(startingPositions)];
+  }
+
   public synchronized Employee getEmployee(int id) {
     return this.employees[id - 1];
   }
