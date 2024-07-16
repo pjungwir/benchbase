@@ -26,7 +26,7 @@
             <!--
             <weights>1,1,7,90,1</weights>
             -->
-            <weights>5,5,5,1,10,2,10</weights>
+            <weights>5,5,5,1,10,2,10,5</weights>
         </work>
     </works>
 
@@ -52,6 +52,9 @@
         </transactiontype>
         <transactiontype>
             <name>SelectOneEmployeePositions</name>
+        </transactiontype>
+        <transactiontype>
+            <name>SelectEmployeesWithPosition</name>
         </transactiontype>
     </transactiontypes>
 </parameters>
