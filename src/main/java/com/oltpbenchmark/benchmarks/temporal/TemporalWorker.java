@@ -8,6 +8,7 @@ import com.oltpbenchmark.types.TransactionStatus;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +102,15 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
           }
           break;
         }
+
+      } else if (nextTrans.getProcedureClass().equals(SelectOneEmployee.class)) {
+        Employee emp = model.chooseEmployee(rng());
+        // 1 + to avoid 0:
+        LocalDate asof =
+            emp.hired.plusDays(rng().nextLong(1 + emp.hired.until(model.today, ChronoUnit.DAYS)));
+        getProcedure(SelectOneEmployee.class).run(conn, emp.employeeId, asof);
       }
+
     } catch (SQLException e) {
       // If it was a foreign key error, that's fine.
       // (We want to test that path too.)

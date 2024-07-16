@@ -4,9 +4,9 @@ import java.time.LocalDate;
 
 /** Keeps track of this employee's progress, so we can add new things accordingly. */
 public final class Employee {
-  public int employeeId;
+  public final int employeeId;
   public int salary;
-  public LocalDate hired;
+  public final LocalDate hired;
   public LocalDate lastRaised;
   public boolean fired = false;
 
