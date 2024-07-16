@@ -122,6 +122,10 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
             emp.hired.plusDays(rng().nextLong(1 + emp.hired.until(model.today, ChronoUnit.DAYS)));
         getProcedure(SelectOneEmployeePositions.class).run(conn, emp.employeeId, asof);
 
+      } else if (nextTrans.getProcedureClass().equals(SelectEmployeesWithPosition.class)) {
+        LocalDate asof =
+            model.today.minusDays(rng().nextLong(365 * TemporalConstants.MAX_EMPLOYEE_TENURE));
+        getProcedure(SelectEmployeesWithPosition.class).run(conn, asof);
       }
 
     } catch (SQLException e) {
