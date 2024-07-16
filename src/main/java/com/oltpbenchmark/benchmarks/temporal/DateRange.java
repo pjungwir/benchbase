@@ -50,4 +50,18 @@ public class DateRange {
 
     return new DateRange(from, til);
   }
+
+  public boolean contains(DateRange r) {
+    if (isEmpty) return r.isEmpty;
+    if (r.isEmpty) return true;
+
+    return (from == null || (r.from != null && (from.equals(r.from) || from.isBefore(r.from))))
+        && (til == null || (r.til != null && (til.equals(r.til) || til.isAfter(r.til))));
+  }
+
+  public String toString() {
+    if (isEmpty) return "empty";
+
+    return (from == null ? "(," : ("[" + from + ",")) + (til == null ? ")" : (til + ")"));
+  }
 }
