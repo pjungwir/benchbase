@@ -7,15 +7,18 @@ public final class Position {
   public int positionId;
   public int employeeId;
   public LocalDate lastPromoted;
+  public LocalDate relieved;
   public String duty;
   public int rank;
 
-  public Position(int positionId, int employeeId, String duty, LocalDate assigned) {
+  public Position(
+      int positionId, int employeeId, String duty, LocalDate assigned, LocalDate relieved) {
     this.positionId = positionId;
     this.employeeId = employeeId;
     this.duty = duty;
     this.rank = 1;
     this.lastPromoted = assigned;
+    this.relieved = relieved;
   }
 
   public void promote(LocalDate asof) {

@@ -195,7 +195,7 @@ public final class TemporalLoader extends Loader<TemporalBenchmark> {
 
     String sql =
         "INSERT INTO positions (id, valid_at, employee_id, name) "
-            + "VALUES (?, daterange(?, null), ?, ?)";
+            + "VALUES (?, daterange(?, ?), ?, ?)";
 
     int total = 0;
 
@@ -206,17 +206,27 @@ public final class TemporalLoader extends Loader<TemporalBenchmark> {
         String duty =
             TemporalConstants.POSITION_NAMES[
                 this.rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
-        int employeeId = i % this.model.startingEmployees + 1;
+        int employeeId = this.model.gaussianEmployeeId(rng());
         Employee emp = this.model.getEmployee(employeeId);
-        LocalDate t = emp.hired;
+        // Start within 5 years of their hire date:
+        LocalDate startDate = emp.hired.plusDays(rng().nextInt(365 * 5));
+        // Hold the position for x years:
+        int years =
+            rng()
+                    .nextInt(
+                        TemporalConstants.MAX_POSITION_DURATION
+                            - TemporalConstants.MIN_POSITION_DURATION)
+                + TemporalConstants.MIN_POSITION_DURATION;
+        LocalDate endDate = startDate.plusDays(365 * years);
 
         positionInsert.setInt(1, i);
-        positionInsert.setDate(2, Date.valueOf(t));
-        positionInsert.setInt(3, employeeId);
-        positionInsert.setString(4, duty);
+        positionInsert.setDate(2, Date.valueOf(startDate));
+        positionInsert.setDate(3, Date.valueOf(endDate));
+        positionInsert.setInt(4, employeeId);
+        positionInsert.setString(5, duty);
         positionInsert.addBatch();
 
-        this.model.insertPosition(i, employeeId, duty, t);
+        this.model.insertPosition(i, employeeId, duty, startDate, endDate);
 
         batchSize++;
         total++;

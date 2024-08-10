@@ -9,14 +9,14 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 
 public class InsertPosition extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt insertPosition =
       new SQLStmt(
           "INSERT INTO positions (employee_id, valid_at, name) "
               + "VALUES (?, daterange(?, ?), concat(?, ' ', to_char(?, 'RN'))) RETURNING id");
 
   public int run(Connection conn, int employeeId, String duty, LocalDate s, LocalDate e, int rank)
       throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, insertPosition)) {
       stmt.setInt(1, employeeId);
       stmt.setDate(2, s == null ? null : Date.valueOf(s));
       stmt.setDate(3, e == null ? null : Date.valueOf(e));

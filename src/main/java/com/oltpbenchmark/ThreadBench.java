@@ -150,6 +150,7 @@ public class ThreadBench implements Thread.UncaughtExceptionHandler {
     long warmup = warmupStart;
     long measureEnd = -1;
 
+    // How long in between running procedures, in nanoseconds
     long intervalNs = getInterval(lowestRate, phase.getArrival());
 
     long nextInterval = start + intervalNs;
@@ -383,9 +384,9 @@ public class ThreadBench implements Thread.UncaughtExceptionHandler {
   private long getInterval(double lowestRate, Phase.Arrival arrival) {
     // TODO Auto-generated method stub
     if (arrival == Phase.Arrival.POISSON) {
-      return (long) ((-Math.log(1 - Math.random()) / lowestRate) * 1000000000.);
+      return (long) ((-Math.log(1 - Math.random()) / lowestRate) * 1_000_000_000.);
     } else {
-      return (long) (1000000000. / lowestRate + 0.5);
+      return (long) (1_000_000_000. / lowestRate + 0.5);
     }
   }
 

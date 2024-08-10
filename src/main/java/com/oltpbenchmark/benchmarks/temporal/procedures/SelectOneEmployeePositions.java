@@ -11,7 +11,7 @@ import java.time.LocalDate;
 
 /** Selects the positions for one employee using an inner join. */
 public class SelectOneEmployeePositions extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt selectOneEmployeePositions =
       new SQLStmt(
           ""
               + "SELECT p.id, p.valid_at * e.valid_at AS valid_at, p.name, p.employee_id "
@@ -20,7 +20,7 @@ public class SelectOneEmployeePositions extends Procedure {
               + "WHERE e.id = ? AND e.valid_at @> ?::date");
 
   public void run(Connection conn, int employeeId, LocalDate asof) throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, selectOneEmployeePositions)) {
       stmt.setInt(1, employeeId);
       stmt.setDate(2, Date.valueOf(asof));
       try (ResultSet rs = stmt.executeQuery()) {

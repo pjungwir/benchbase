@@ -9,18 +9,18 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 
 public class UpdateEmployee extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt updateEmployee =
       new SQLStmt(
           "UPDATE employees FOR PORTION OF valid_at FROM ? TO ? "
-              + "SET salary = ? "
+              + "SET salary = salary + ? "
               + "WHERE id = ?");
 
-  public boolean run(Connection conn, int employeeId, int salary, LocalDate raisedAt)
+  public boolean run(Connection conn, int employeeId, int raise, LocalDate raisedAt)
       throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, updateEmployee)) {
       stmt.setDate(1, Date.valueOf(raisedAt));
       stmt.setDate(2, null);
-      stmt.setInt(3, salary);
+      stmt.setInt(3, raise);
       stmt.setInt(4, employeeId);
       return stmt.execute();
     }

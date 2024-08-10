@@ -18,6 +18,6 @@ CREATE TABLE positions (
     name        text NOT NULL,
     employee_id int NOT NULL,
     PRIMARY KEY (id, valid_at WITHOUT OVERLAPS),
-    FOREIGN KEY (employee_id, PERIOD valid_at) REFERENCES employees (id, PERIOD valid_at) ON DELETE CASCADE
+    FOREIGN KEY (employee_id, PERIOD valid_at) REFERENCES employees (id, PERIOD valid_at)
 );
 CREATE INDEX idx_positions_employee_id ON positions USING gist (employee_id, valid_at);

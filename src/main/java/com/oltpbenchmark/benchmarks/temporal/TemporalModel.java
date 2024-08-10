@@ -1,11 +1,13 @@
 package com.oltpbenchmark.benchmarks.temporal;
 
 import com.oltpbenchmark.benchmarks.temporal.procedures.*;
+import com.oltpbenchmark.util.RandomDistribution;
 import java.time.LocalDate;
 import java.util.Random;
 
 public final class TemporalModel {
 
+  public final double scaleFactor;
   public final LocalDate today;
   public final int startingEmployees;
   public final int startingPositions;
@@ -14,11 +16,40 @@ public final class TemporalModel {
   private int fkViolations = 0;
 
   public TemporalModel(double scaleFactor) {
+    this.scaleFactor = scaleFactor;
     this.today = LocalDate.now();
     this.startingEmployees = (int) Math.round(TemporalConstants.NUM_EMPLOYEES * scaleFactor);
     this.startingPositions = (int) Math.round(TemporalConstants.NUM_POSITIONS * scaleFactor);
     this.employees = new Employee[startingEmployees];
     this.positions = new Position[startingPositions];
+  }
+
+  public int gaussianEmployeeId(Random rng) {
+    // We have to make a new Gaussian each time,
+    // because rng should be a thread-local variable:
+    return new RandomDistribution.Gaussian(
+            rng, 1, Math.round(TemporalConstants.NUM_EMPLOYEES * scaleFactor))
+        .nextInt();
+  }
+
+  public int gaussianPositionId(Random rng) {
+    // We have to make a new Gaussian each time,
+    // because rng should be a thread-local variable:
+    return new RandomDistribution.Gaussian(
+            rng, 1, Math.round(TemporalConstants.NUM_POSITIONS * scaleFactor))
+        .nextInt();
+  }
+
+  /*
+   * Returns an int +/- halfRange from today,
+   * with normal distribution.
+   */
+  public int gaussianDays(Random rng, int halfRange) {
+    return new RandomDistribution.Gaussian(rng, -halfRange, halfRange).nextInt();
+  }
+
+  public int zipfianRank(Random rng, int max) {
+    return new RandomDistribution.Zipf(rng, 1, max, 2).nextInt();
   }
 
   public int randomEmployeeId(Random rng) {
@@ -50,8 +81,8 @@ public final class TemporalModel {
   }
 
   public synchronized void insertPosition(
-      int positionId, int employeeId, String duty, LocalDate assigned) {
-    this.positions[positionId - 1] = new Position(positionId, employeeId, duty, assigned);
+      int positionId, int employeeId, String duty, LocalDate assigned, LocalDate relieved) {
+    this.positions[positionId - 1] = new Position(positionId, employeeId, duty, assigned, relieved);
   }
 
   public synchronized int failFk() {

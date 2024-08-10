@@ -9,11 +9,11 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 
 public class DeleteEmployee extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt deleteEmployee =
       new SQLStmt("DELETE FROM employees FOR PORTION OF valid_at FROM ? TO ? " + "WHERE id = ?");
 
   public boolean run(Connection conn, int employeeId, LocalDate firedAt) throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, deleteEmployee)) {
       stmt.setDate(1, Date.valueOf(firedAt));
       stmt.setDate(2, null);
       stmt.setInt(3, employeeId);

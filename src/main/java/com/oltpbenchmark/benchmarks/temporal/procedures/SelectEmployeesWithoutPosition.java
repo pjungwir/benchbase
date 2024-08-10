@@ -16,7 +16,7 @@ import java.time.LocalDate;
  * <p>This lets us benchmark antijoins.
  */
 public class SelectEmployeesWithoutPosition extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt selectEmployeesWithoutPosition =
       new SQLStmt(
           ""
               + "SELECT  e.id, UNNEST(CASE WHEN j.valid_at IS NULL "
@@ -34,7 +34,7 @@ public class SelectEmployeesWithoutPosition extends Procedure {
               + "WHERE e.valid_at @> ?::date");
 
   public void run(Connection conn, LocalDate asof) throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, selectEmployeesWithoutPosition)) {
       stmt.setDate(1, Date.valueOf(asof));
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {

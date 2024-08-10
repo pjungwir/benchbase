@@ -25,83 +25,164 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
     // TODO: Use a fixed seed like TPCH?
   }
 
+  private class RandomEmployee {
+    public final int id;
+    public final LocalDate s;
+    public final LocalDate e;
+    public final int raise;
+
+    private RandomEmployee(int id, LocalDate s, LocalDate e, int raise) {
+      this.id = id;
+      this.s = s;
+      this.e = e;
+      this.raise = raise;
+    }
+  }
+
+  private RandomEmployee makeRandomEmployee() {
+    int id = model.gaussianEmployeeId(rng());
+    // Start the range +/- some years centered on today.
+    // This should give us mostly "success" (i.e. the foreign key is valid),
+    // but sometimes a failure.
+    // We report failures as errors so we can see whether we have a realistic mix.
+    // You can tune this with MAX_YEARS_CHECK_FK_RANGE.
+    // I imagine the FK should valid 99% of the time.
+    LocalDate s;
+    LocalDate e;
+
+    if (TemporalConstants.CHECK_FK_GAUSSIAN_RANGE) {
+      s =
+          model.today.plusDays(
+              model.gaussianDays(
+                  rng(), (int) Math.round(TemporalConstants.MAX_YEARS_CHECK_FK_RANGE * 365)));
+      // Pick a range from 1 day to 2 years:
+      e = s.plusDays(1 + rng().nextInt(365 * 2));
+    } else {
+      s = model.today.plusDays(-rng().nextInt(365 * TemporalConstants.MAX_EMPLOYEE_TENURE));
+      e = s.plusDays(1 + rng().nextInt(365 * 5));
+    }
+
+    int raise = 1000 * (1 + rng().nextInt(20));
+
+    return new RandomEmployee(id, s, e, raise);
+  }
+
+  private class RandomPosition {
+    public final int id;
+    public final LocalDate s;
+    public final LocalDate e;
+    public final Integer employeeId;
+    public final String duty;
+    public final int rank;
+
+    private RandomPosition(
+        int id, LocalDate s, LocalDate e, Integer employeeId, String duty, int rank) {
+      this.id = id;
+      this.s = s;
+      this.e = e;
+      this.employeeId = employeeId;
+      this.duty = duty;
+      this.rank = rank;
+    }
+  }
+
+  private RandomPosition makeRandomPosition() {
+    int id = model.gaussianPositionId(rng());
+    // Start the range +/- some years centered on today.
+    // This should give us mostly "success" (i.e. the foreign key is valid),
+    // but sometimes a failure.
+    // We report failures as errors so we can see whether we have a realistic mix.
+    // You can tune this with MAX_YEARS_CHECK_FK_RANGE.
+    // I imagine the FK should valid 99% of the time.
+    LocalDate s;
+    LocalDate e;
+    Integer employeeId = null;
+    String duty;
+    int rank;
+
+    if (TemporalConstants.CHECK_FK_GAUSSIAN_RANGE) {
+      s =
+          model.today.plusDays(
+              model.gaussianDays(
+                  rng(), (int) Math.round(TemporalConstants.MAX_YEARS_CHECK_FK_RANGE * 365)));
+      // Pick a range from 1 day to 2 years:
+      e = s.plusDays(1 + rng().nextInt(365 * 2));
+    } else {
+      s = model.today.plusDays(-rng().nextInt(365 * TemporalConstants.MAX_EMPLOYEE_TENURE));
+      e = s.plusDays(1 + rng().nextInt(365 * 5));
+    }
+
+    // Occasionally reassign the position to another employee:
+    boolean reassign = rng().nextInt(100) < 20; // 20%
+    if (reassign) {
+      employeeId = model.gaussianEmployeeId(rng());
+    }
+
+    duty = TemporalConstants.POSITION_NAMES[rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
+
+    rank = model.zipfianRank(rng(), 6);
+
+    return new RandomPosition(id, s, e, employeeId, duty, rank);
+  }
+
   @Override
   protected TransactionStatus executeWork(Connection conn, TransactionType nextTrans)
       throws UserAbortException, SQLException {
 
-    boolean expectFkViolation = false;
-
     try {
-      if (nextTrans.getProcedureClass().equals(InsertPosition.class)) {
-        Employee emp = model.chooseEmployee(rng());
-        synchronized (emp) {
-          if (emp.fired) expectFkViolation = true;
+      // These first three are for a synthetic benchmark
+      // comparing foreign key implementations,
+      // so we can run just the different trigger queries
+      // and not include all the other stuff.
 
-          String duty =
-              TemporalConstants.POSITION_NAMES[
-                  rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
-          int rank = 1;
-          LocalDate s = emp.hired;
-          LocalDate e = null;
+      if (nextTrans.getProcedureClass().equals(CheckForeignKeyRangeAgg.class)) {
+        RandomEmployee emp = makeRandomEmployee();
+        int ok = getProcedure(CheckForeignKeyRangeAgg.class).run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
 
-          int positionId =
-              getProcedure(InsertPosition.class).run(conn, emp.employeeId, duty, s, e, rank);
-          // TODO: For now we'll only update the rows from the initial load,
-          // to cut down on contention in our model.
-          // But it'd be nice to update new things too.
-          // getBenchmark().model.insertPosition(employeeId, positionId, duty, s, e, rank);
-        }
+      } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyLag.class)) {
+        RandomEmployee emp = makeRandomEmployee();
+        int ok = getProcedure(CheckForeignKeyLag.class).run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
+
+      } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyExists.class)) {
+        RandomEmployee emp = makeRandomEmployee();
+        int ok = getProcedure(CheckForeignKeyExists.class).run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
+
+      } else if (nextTrans.getProcedureClass().equals(Noop.class)) {
+        // Do nothing, so we can make a 33/33/33/1 workload instead of 33/33/34.
+        getProcedure(Noop.class).run(conn);
+
+        // These next four are for real queries
+        // that excercise the foreign key constraint triggers:
+        // referenced update/delete and referencing update/insert:
+
+      } else if (nextTrans.getProcedureClass().equals(InsertPosition.class)) {
+        RandomEmployee emp = makeRandomEmployee();
+        String duty =
+            TemporalConstants.POSITION_NAMES[
+                rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
+        int rank = 1;
+
+        getProcedure(InsertPosition.class).run(conn, emp.id, duty, emp.s, emp.e, rank);
 
       } else if (nextTrans.getProcedureClass().equals(UpdatePosition.class)) {
-        Position p = model.choosePosition(rng());
-        synchronized (p) {
-          Employee emp;
-          // 50% of the time, assign to another employee to test the FK:
-          boolean reassign = rng().nextInt(100) > 50;
-          p.rank += 1;
+        RandomPosition p = makeRandomPosition();
 
-          emp = reassign ? model.chooseEmployee(rng()) : model.getEmployee(p.employeeId);
-          synchronized (emp) {
-            if (emp.fired) expectFkViolation = true;
-
-            if (reassign) {
-              p.employeeId = emp.employeeId;
-              // Better start after they were hired:
-              p.lastPromoted = emp.hired;
-            }
-            p.lastPromoted = p.lastPromoted.plusDays(1 + rng().nextInt(365 * 3));
-            getProcedure(UpdatePosition.class)
-                .run(conn, p.positionId, p.employeeId, p.duty, p.rank, p.lastPromoted);
-          }
-        }
+        getProcedure(UpdatePosition.class).run(conn, p.id, p.employeeId, p.duty, p.rank, p.s);
 
       } else if (nextTrans.getProcedureClass().equals(UpdateEmployee.class)) {
-        while (true) {
-          Employee emp = model.chooseEmployee(rng());
-          synchronized (emp) {
-            if (emp.fired) continue;
-
-            emp.raise(emp.lastRaised.plusDays(365 * (1 + rng().nextInt(3))));
-            getProcedure(UpdateEmployee.class)
-                .run(conn, emp.employeeId, emp.salary, emp.lastRaised);
-          }
-          break;
-        }
+        RandomEmployee emp = makeRandomEmployee();
+        getProcedure(UpdateEmployee.class).run(conn, emp.id, emp.raise, emp.s);
 
       } else if (nextTrans.getProcedureClass().equals(DeleteEmployee.class)) {
-        // The FK is ON DELETE CASCADE, so expectFkViolation is always false here.
-        while (true) {
-          Employee emp = model.chooseEmployee(rng());
-          synchronized (emp) {
-            if (emp.fired) continue;
+        RandomEmployee emp = makeRandomEmployee();
+        getProcedure(DeleteEmployee.class).run(conn, emp.id, emp.e);
 
-            emp.fired = true;
-            // Advance lastRaised so other operations will hit an FK violation:
-            emp.lastRaised = emp.lastRaised.plusDays(1 + rng().nextInt(365 * 3));
-            getProcedure(DeleteEmployee.class).run(conn, emp.employeeId, emp.lastRaised);
-          }
-          break;
-        }
+        // The rest are for read-only queries,
+        // mostly various join types:
+        // inner join, left outer join, semijoin, antijoin:
 
       } else if (nextTrans.getProcedureClass().equals(SelectOneEmployee.class)) {
         Employee emp = model.chooseEmployee(rng());
@@ -155,15 +236,17 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
       // 23503 is the standard code for a foreign key violation.
       // Just keep track in case it's a lot.
       // It's too bad we don't get a chance to log the final count once all the workers are done.
-      if (expectFkViolation && e.getSQLState().equals("23503")) {
+      // But we can track it as an ERROR to see a histogram at the end.
+      if (e.getSQLState().equals("23503")) {
         int failures = model.failFk();
         if (LOG.isDebugEnabled()) {
           LOG.debug(String.format("fk failures: %d", failures));
         }
+        return TransactionStatus.ERROR;
       } else {
         throw e;
       }
     }
-    return (TransactionStatus.SUCCESS);
+    return TransactionStatus.SUCCESS;
   }
 }

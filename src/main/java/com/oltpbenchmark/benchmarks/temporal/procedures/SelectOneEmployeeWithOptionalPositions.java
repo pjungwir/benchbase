@@ -12,7 +12,7 @@ import java.time.LocalDate;
 
 /** Finds an employee with their positions as an outer join. */
 public class SelectOneEmployeeWithOptionalPositions extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt selectOneEmployeeWithOptionalPositions =
       new SQLStmt(
           ""
               + "SELECT  e.*, "
@@ -39,7 +39,8 @@ public class SelectOneEmployeeWithOptionalPositions extends Procedure {
               + "WHERE e.id = ? AND e.valid_at @> ?::date");
 
   public void run(Connection conn, int employeeId, LocalDate asof) throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt =
+        this.getPreparedStatement(conn, selectOneEmployeeWithOptionalPositions)) {
       stmt.setInt(1, employeeId);
       stmt.setDate(2, Date.valueOf(asof));
       stmt.setInt(3, employeeId);

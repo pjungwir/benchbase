@@ -16,7 +16,7 @@ import java.time.LocalDate;
  * <p>This lets us benchmark semijoins.
  */
 public class SelectEmployeesWithPosition extends Procedure {
-  public final SQLStmt sql =
+  public final SQLStmt selectEmployeesWithPosition =
       new SQLStmt(
           ""
               + "SELECT  e.id, UNNEST(multirange(e.valid_at) * j.valid_at)::text AS valid_at, "
@@ -31,7 +31,7 @@ public class SelectEmployeesWithPosition extends Procedure {
               + "WHERE e.valid_at @> ?::date");
 
   public void run(Connection conn, LocalDate asof) throws SQLException {
-    try (PreparedStatement stmt = this.getPreparedStatement(conn, sql)) {
+    try (PreparedStatement stmt = this.getPreparedStatement(conn, selectEmployeesWithPosition)) {
       stmt.setDate(1, Date.valueOf(asof));
       try (ResultSet rs = stmt.executeQuery()) {
         while (rs.next()) {
