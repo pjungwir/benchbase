@@ -31,7 +31,7 @@ public abstract class TemporalConstants {
   public static final double PROBABILITY_UNASSIGNED = 0.1;
 
   /** +/- years from today for CheckForeignKey* procedures */
-  public static final boolean CHECK_FK_GAUSSIAN_RANGE = false;
+  public static final boolean CHECK_FK_GAUSSIAN_RANGE = true;
 
   public static final double MAX_YEARS_CHECK_FK_RANGE = 0.03; /* 1% failure rate */
 }

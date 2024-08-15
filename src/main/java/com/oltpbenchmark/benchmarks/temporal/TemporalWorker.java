@@ -16,11 +16,13 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
   private static final Logger LOG = LoggerFactory.getLogger(TemporalWorker.class);
 
   private final TemporalModel model;
+  private final TemporalConfiguration config;
 
   public TemporalWorker(TemporalBenchmark benchmarkModule, int id) {
     super(benchmarkModule, id);
 
     model = getBenchmark().model;
+    config = getBenchmark().config;
 
     // TODO: Use a fixed seed like TPCH?
   }
@@ -39,22 +41,21 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
     }
   }
 
-  private RandomEmployee makeRandomEmployee() {
+  private RandomEmployee makeRandomEmployee(boolean gaussianEmployee, double maxYears) {
     int id = model.gaussianEmployeeId(rng());
     // Start the range +/- some years centered on today.
     // This should give us mostly "success" (i.e. the foreign key is valid),
     // but sometimes a failure.
     // We report failures as errors so we can see whether we have a realistic mix.
-    // You can tune this with MAX_YEARS_CHECK_FK_RANGE.
+    // You can tune this with custom config elements:
+    // <maxYears{Update,Delete}EmployeeRange>
+    // and <maxYears{Insert,Update}PositionRange>.
     // I imagine the FK should valid 99% of the time.
     LocalDate s;
     LocalDate e;
 
     if (TemporalConstants.CHECK_FK_GAUSSIAN_RANGE) {
-      s =
-          model.today.plusDays(
-              model.gaussianDays(
-                  rng(), (int) Math.round(TemporalConstants.MAX_YEARS_CHECK_FK_RANGE * 365)));
+      s = model.today.plusDays(model.gaussianDays(rng(), (int) Math.round(maxYears * 365)));
       // Pick a range from 1 day to 2 years:
       e = s.plusDays(1 + rng().nextInt(365 * 2));
     } else {
@@ -86,13 +87,15 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
     }
   }
 
-  private RandomPosition makeRandomPosition() {
+  private RandomPosition makeRandomPosition(double maxYears) {
     int id = model.gaussianPositionId(rng());
     // Start the range +/- some years centered on today.
     // This should give us mostly "success" (i.e. the foreign key is valid),
     // but sometimes a failure.
     // We report failures as errors so we can see whether we have a realistic mix.
-    // You can tune this with MAX_YEARS_CHECK_FK_RANGE.
+    // You can tune this with custom config elements:
+    // <maxYears{Update,Delete}EmployeeRange>
+    // and <maxYears{Insert,Update}PositionRange>.
     // I imagine the FK should valid 99% of the time.
     LocalDate s;
     LocalDate e;
@@ -101,10 +104,7 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
     int rank;
 
     if (TemporalConstants.CHECK_FK_GAUSSIAN_RANGE) {
-      s =
-          model.today.plusDays(
-              model.gaussianDays(
-                  rng(), (int) Math.round(TemporalConstants.MAX_YEARS_CHECK_FK_RANGE * 365)));
+      s = model.today.plusDays(model.gaussianDays(rng(), (int) Math.round(maxYears * 365)));
       // Pick a range from 1 day to 2 years:
       e = s.plusDays(1 + rng().nextInt(365 * 2));
     } else {
@@ -134,20 +134,58 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
       // comparing foreign key implementations,
       // so we can run just the different trigger queries
       // and not include all the other stuff.
+      // They foreign key should be invalid 1% of the time.
 
       if (nextTrans.getProcedureClass().equals(CheckForeignKeyRangeAgg.class)) {
-        RandomEmployee emp = makeRandomEmployee();
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
         int ok = getProcedure(CheckForeignKeyRangeAgg.class).run(conn, emp.id, emp.s, emp.e);
         if (ok < 1) return TransactionStatus.ERROR;
 
       } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyLag.class)) {
-        RandomEmployee emp = makeRandomEmployee();
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
         int ok = getProcedure(CheckForeignKeyLag.class).run(conn, emp.id, emp.s, emp.e);
         if (ok < 1) return TransactionStatus.ERROR;
 
       } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyExists.class)) {
-        RandomEmployee emp = makeRandomEmployee();
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
         int ok = getProcedure(CheckForeignKeyExists.class).run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
+
+        // These next three are the same, but we'll choose parameters
+        // that should make the foreign key fail 90% of the time.
+
+      } else if (nextTrans
+          .getProcedureClass()
+          .equals(CheckForeignKeyRangeAggProbablyInvalid.class)) {
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
+        int ok =
+            getProcedure(CheckForeignKeyRangeAggProbablyInvalid.class)
+                .run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
+
+      } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyLagProbablyInvalid.class)) {
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
+        int ok =
+            getProcedure(CheckForeignKeyLagProbablyInvalid.class).run(conn, emp.id, emp.s, emp.e);
+        if (ok < 1) return TransactionStatus.ERROR;
+
+      } else if (nextTrans.getProcedureClass().equals(CheckForeignKeyExistsProbablyInvalid.class)) {
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
+        int ok =
+            getProcedure(CheckForeignKeyExistsProbablyInvalid.class)
+                .run(conn, emp.id, emp.s, emp.e);
         if (ok < 1) return TransactionStatus.ERROR;
 
       } else if (nextTrans.getProcedureClass().equals(Noop.class)) {
@@ -159,7 +197,9 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
         // referenced update/delete and referencing update/insert:
 
       } else if (nextTrans.getProcedureClass().equals(InsertPosition.class)) {
-        RandomEmployee emp = makeRandomEmployee();
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsInsertPositionRange());
         String duty =
             TemporalConstants.POSITION_NAMES[
                 rng().nextInt(TemporalConstants.POSITION_NAMES.length)];
@@ -168,17 +208,23 @@ public final class TemporalWorker extends Worker<TemporalBenchmark> {
         getProcedure(InsertPosition.class).run(conn, emp.id, duty, emp.s, emp.e, rank);
 
       } else if (nextTrans.getProcedureClass().equals(UpdatePosition.class)) {
-        RandomPosition p = makeRandomPosition();
+        RandomPosition p = makeRandomPosition(config.getMaxYearsUpdatePositionRange());
 
         getProcedure(UpdatePosition.class).run(conn, p.id, p.employeeId, p.duty, p.rank, p.s);
 
       } else if (nextTrans.getProcedureClass().equals(UpdateEmployee.class)) {
-        RandomEmployee emp = makeRandomEmployee();
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE, config.getMaxYearsUpdateEmployeeRange());
         getProcedure(UpdateEmployee.class).run(conn, emp.id, emp.raise, emp.s);
 
       } else if (nextTrans.getProcedureClass().equals(DeleteEmployee.class)) {
-        RandomEmployee emp = makeRandomEmployee();
-        getProcedure(DeleteEmployee.class).run(conn, emp.id, emp.e);
+        RandomEmployee emp =
+            makeRandomEmployee(
+                TemporalConstants.CHECK_FK_GAUSSIAN_RANGE,
+                TemporalConstants.MAX_EMPLOYEE_TENURE / 2);
+        getProcedure(DeleteEmployee.class)
+            .run(conn, emp.id, emp.e.plusDays((long) (365 * config.getShiftYearsDeleteEmployee())));
 
         // The rest are for read-only queries,
         // mostly various join types:

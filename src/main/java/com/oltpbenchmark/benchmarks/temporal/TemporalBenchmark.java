@@ -14,12 +14,12 @@ import org.slf4j.LoggerFactory;
 public final class TemporalBenchmark extends BenchmarkModule {
   private static final Logger LOG = LoggerFactory.getLogger(TemporalBenchmark.class);
 
-  private final TemporalConfiguration temporalConf;
+  public final TemporalConfiguration config;
   public final TemporalModel model;
 
   public TemporalBenchmark(WorkloadConfiguration workConf) {
     super(workConf);
-    this.temporalConf = new TemporalConfiguration(workConf);
+    this.config = new TemporalConfiguration(workConf);
     this.model = new TemporalModel(workConf.getScaleFactor());
   }
 
