@@ -3,6 +3,7 @@ package com.oltpbenchmark.benchmarks.temporal;
 import com.oltpbenchmark.api.Loader;
 import com.oltpbenchmark.api.LoaderThread;
 import com.oltpbenchmark.catalog.Table;
+import com.oltpbenchmark.util.RandomDistribution;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -18,11 +19,13 @@ public final class TemporalLoader extends Loader<TemporalBenchmark> {
   private static final Logger LOG = LoggerFactory.getLogger(TemporalLoader.class);
 
   private final TemporalModel model;
+  private final TemporalConfiguration config;
 
   public TemporalLoader(TemporalBenchmark benchmark) {
     super(benchmark);
 
     model = this.benchmark.model;
+    config = this.benchmark.config;
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("# of EMPLOYEES: {}", model.startingEmployees);
@@ -57,6 +60,7 @@ public final class TemporalLoader extends Loader<TemporalBenchmark> {
             @Override
             public void load(Connection conn) throws SQLException {
               loadEmployees(conn, lo, hi);
+              updateEmployees(conn, lo, hi);
             }
 
             @Override
@@ -184,6 +188,64 @@ public final class TemporalLoader extends Loader<TemporalBenchmark> {
     }
     if (LOG.isDebugEnabled()) {
       LOG.debug(String.format("Employees Loaded [%d]", total));
+    }
+  }
+
+  /**
+   * Give a salary history to employees so that they have more than one record.
+   *
+   * <p>For each employee id from lo to hi, give them maxSalaryHistory raises.
+   *
+   * @throws SQLException
+   */
+  protected void updateEmployees(Connection conn, int lo, int hi) throws SQLException {
+    String sql =
+        "UPDATE employees FOR PORTION OF valid_at FROM ? TO ? "
+            + "SET salary = salary * 1.01 "
+            + "WHERE id = ?";
+    RandomDistribution.Gaussian gaussian =
+        new RandomDistribution.Gaussian(this.rng(), 0, config.getMaxSalaryHistory());
+
+    try (PreparedStatement employeeUpdate = conn.prepareStatement(sql)) {
+      int batchSize = 0;
+      int total = 0;
+
+      // For each employee:
+      for (int i = lo; i <= hi; i++) {
+        int raises = gaussian.nextInt();
+        LocalDate s = this.model.today;
+        LocalDate e;
+
+        // For each raise:
+        for (int j = 0; j < raises; j++) {
+          // All employees were hired in the past, so we can start from today
+          // and give a raise every year.
+          e = s.plusDays(365);
+
+          employeeUpdate.setDate(1, Date.valueOf(s));
+          employeeUpdate.setDate(2, Date.valueOf(e));
+          employeeUpdate.setInt(3, i);
+          employeeUpdate.addBatch();
+          batchSize++;
+          total++;
+
+          s = e;
+
+          if ((batchSize % workConf.getBatchSize()) == 0) {
+            employeeUpdate.executeBatch();
+            employeeUpdate.clearBatch();
+            batchSize = 0;
+            if (LOG.isDebugEnabled()) {
+              LOG.debug(String.format("Employee updates %d", total));
+            }
+          }
+        }
+      }
+
+      if (batchSize > 0) {
+        employeeUpdate.executeBatch();
+        employeeUpdate.clearBatch();
+      }
     }
   }
 

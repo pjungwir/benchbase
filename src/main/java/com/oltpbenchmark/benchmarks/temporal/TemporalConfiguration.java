@@ -12,6 +12,16 @@ public class TemporalConfiguration {
   }
 
   /*
+   * Optionally update the employee records after creating them,
+   * so that they have a history spanning multiple records.
+   * We can do this by giving raises.
+   * If this is zero, every employee has just one record.
+   */
+  public int getMaxSalaryHistory() {
+    return xmlConfig.getInt("maxSalaryHistory", 0);
+  }
+
+  /*
    * These four parameters let you tune the start/end times
    * used for each operation that invokes a foreign key trigger.
    * The defaults should give roughly 99% valid operations
